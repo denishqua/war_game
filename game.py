@@ -1,7 +1,10 @@
 # A simple 2-player High Card game with an object-oriented structure
 # that separates strategies into their own classes.
 
-import random
+from strategies.sample_strategies import (RandomStrategy, HighCardStrategy,
+                                          LowCardStrategy, StrategicPlay)
+
+NUM_CARDS = 9
 
 class Player:
     """
@@ -11,7 +14,8 @@ class Player:
     def __init__(self, name):
         self.name = name
         self.score = 0
-        self.numbers = list(range(1, 14))
+        self.numbers = list(range(1, NUM_CARDS + 1))
+        self.played_numbers = []
 
     def remove_number(self, number):
         """Removes a chosen number from the player's list."""
@@ -24,73 +28,6 @@ class Player:
         """String representation of the player."""
         return self.name
 
-class Strategy:
-    """
-    Base class for all game strategies.
-    Specific strategies must inherit from this class and implement the play method.
-    """
-    def __init__(self, name):
-        self.name = name
-
-    def play(self, player_numbers, opponent_numbers):
-        """
-        Determines which number to play based on the game state.
-        This method must be implemented by subclasses.
-        """
-        raise NotImplementedError("Subclass must implement abstract method 'play'")
-
-class RandomStrategy(Strategy):
-    """
-    A strategy that plays a random available number.
-    """
-    def __init__(self):
-        super().__init__("Random")
-
-    def play(self, player_numbers, opponent_numbers):
-        return random.choice(player_numbers)
-
-class HighCardStrategy(Strategy):
-    """
-    A strategy that always plays the highest available number.
-    """
-    def __init__(self):
-        super().__init__("High Card")
-
-    def play(self, player_numbers, opponent_numbers):
-        return max(player_numbers)
-
-class LowCardStrategy(Strategy):
-    """
-    A strategy that always plays the lowest available number.
-    """
-    def __init__(self):
-        super().__init__("Low Card")
-
-    def play(self, player_numbers, opponent_numbers):
-        return min(player_numbers)
-
-class StrategicPlay(Strategy):
-    """
-    A strategy that considers the opponent's numbers.
-    It plays the lowest number that can beat the opponent's highest,
-    or its own lowest if it cannot win.
-    """
-    def __init__(self):
-        super().__init__("Strategic Play")
-
-    def play(self, player_numbers, opponent_numbers):
-        if not opponent_numbers:
-            return max(player_numbers)
-
-        opponent_highest = max(opponent_numbers)
-        winning_cards = [card for card in player_numbers if card > opponent_highest]
-        
-        if winning_cards:
-            return min(winning_cards)
-        else:
-            return min(player_numbers)
-
-
 class Game:
     """
     Orchestrates the High Card game.
@@ -99,9 +36,10 @@ class Game:
     def __init__(self):
         self.player = Player("You")
         self.computer = Player("Computer")
-        self.total_turns = 13
+        self.total_turns = NUM_CARDS
         self.current_turn = 1
         self.computer_strategy = None
+        self.verbose = True
         
         self.strategies = {
             "1": RandomStrategy(),
@@ -172,18 +110,24 @@ class Game:
 
     def _update_game_state(self, player1_choice, player2_choice, player1, player2):
         """Compares choices, updates scores, and removes the played numbers."""
-        print(f"{player1.name} played: {player1_choice}")
-        print(f"{player2.name} played: {player2_choice}")
+        if self.verbose:
+            print(f"{player1.name} played: {player1_choice}")
+            print(f"{player2.name} played: {player2_choice}")
 
         if player1_choice > player2_choice:
             player1.score += 1
-            print(f"{player1.name} wins this turn!")
+            if self.verbose:
+                print(f"{player1.name} wins this turn!")
         elif player2_choice > player1_choice:
             player2.score += 1
-            print(f"{player2.name} wins this turn!")
+            if self.verbose:
+                print(f"{player2.name} wins this turn!")
         else:
-            print("It's a tie! No one gets a point.")
-
+            if self.verbose:
+                print("It's a tie! No one gets a point.")
+        
+        player1.played_numbers.append(player1_choice)
+        player2.played_numbers.append(player2_choice)
         player1.remove_number(player1_choice)
         player2.remove_number(player2_choice)
 
@@ -230,8 +174,6 @@ class Game:
         player2 = Player(strategy2.name)
 
         for turn in range(1, self.total_turns + 1):
-            self._display_status(turn, player1, player2)
-
             player1_choice = strategy1.play(player1.numbers, player2.numbers)
             player2_choice = strategy2.play(player2.numbers, player1.numbers)
 
@@ -253,6 +195,7 @@ if __name__ == "__main__":
             game.play()
             break
         elif choice == "2":
+            game.verbose = False
             game.simulate_game()
             break
         else:

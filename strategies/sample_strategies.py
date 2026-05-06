@@ -30,24 +30,3 @@ class LowCardStrategy(Strategy):
 
     def play(self, player_numbers, opponent_numbers):
         return min(player_numbers)
-
-class StrategicPlay(Strategy):
-    """
-    A strategy that considers the opponent's numbers.
-    It plays the lowest number that can beat the opponent's highest,
-    or its own lowest if it cannot win.
-    """
-    def __init__(self):
-        super().__init__("Strategic Play")
-
-    def play(self, player_numbers, opponent_numbers):
-        if not opponent_numbers:
-            return max(player_numbers)
-
-        opponent_highest = max(opponent_numbers)
-        winning_cards = [card for card in player_numbers if card > opponent_highest]
-        
-        if winning_cards:
-            return min(winning_cards)
-        else:
-            return min(player_numbers)

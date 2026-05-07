@@ -57,3 +57,62 @@ class StrategicPlay(Strategy):
             return min(winning_cards)
         else:
             return min(player_numbers)
+
+class RandomFirstStrategicPlay(Strategy):
+    """
+    Same as Strategic Play, but plays a random card on the very first turn
+    to add unpredictability.
+    """
+    def __init__(self):
+        super().__init__("Random First Strategic")
+
+    def play(self, player_numbers, opponent_numbers):
+        import random
+        try:
+            from game import NUM_CARDS
+        except ImportError:
+            NUM_CARDS = 10
+            
+        if len(player_numbers) == NUM_CARDS:
+            return random.choice(player_numbers)
+            
+        if not opponent_numbers:
+            return max(player_numbers)
+
+        opponent_highest = max(opponent_numbers)
+        winning_cards = [card for card in player_numbers if card > opponent_highest]
+        
+        if winning_cards:
+            return min(winning_cards)
+        else:
+            return min(player_numbers)
+
+class HalfOneHalfTwoStrategicPlay(Strategy):
+    """
+    On the first turn, it plays 1 50% of the time and 2 the other 50%.
+    Afterwards, it plays the same as Strategic Play.
+    """
+    def __init__(self):
+        super().__init__("Half 1 Half 2 Strategic")
+
+    def play(self, player_numbers, opponent_numbers):
+        import random
+        try:
+            from game import NUM_CARDS
+        except ImportError:
+            NUM_CARDS = 10
+            
+        if len(player_numbers) == NUM_CARDS:
+            return 2
+            
+        if not opponent_numbers:
+            return max(player_numbers)
+
+        opponent_highest = max(opponent_numbers)
+        winning_cards = [card for card in player_numbers if card > opponent_highest]
+        
+        if winning_cards:
+            return min(winning_cards)
+        else:
+            return min(player_numbers)
+

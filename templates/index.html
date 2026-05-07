@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>High Card Strategy</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="app-container">
+        <header>
+            <h1>High Card Strategy</h1>
+            <nav>
+                <button class="nav-btn active" data-target="interactive-mode">Play Interactive</button>
+                <button class="nav-btn" data-target="simulation-mode">Simulate Matchup</button>
+                <button class="nav-btn" data-target="tournament-mode">Run Tournament</button>
+            </nav>
+        </header>
+
+        <main>
+            <!-- Interactive Mode -->
+            <section id="interactive-mode" class="mode-section active">
+                <div class="setup-container" id="interactive-setup">
+                    <h2>Play against the Computer</h2>
+                    <p>The higher number wins the turn. 1 beats the maximum card.</p>
+                    <div class="input-group">
+                        <label for="opponent-strategy">Computer Strategy:</label>
+                        <select id="opponent-strategy"></select>
+                    </div>
+                    <div class="input-group">
+                        <label for="interactive-cards">Number of Cards:</label>
+                        <input type="number" id="interactive-cards" value="10" min="3" max="50">
+                    </div>
+                    <button id="start-game-btn" class="primary-btn">Start Game</button>
+                </div>
+
+                <div class="game-container" id="interactive-game" style="display: none;">
+                    <div class="scoreboard">
+                        <div class="score-card player">
+                            <h3>You</h3>
+                            <div class="score" id="player-score">0</div>
+                        </div>
+                        <div class="turn-indicator">
+                            Turn <span id="current-turn">1</span>/<span id="total-turns">10</span>
+                        </div>
+                        <div class="score-card computer">
+                            <h3>Computer</h3>
+                            <div class="score" id="computer-score">0</div>
+                        </div>
+                    </div>
+                    
+                    <div class="arena">
+                        <div class="arena-message" id="arena-message">Select a card to play</div>
+                        <div class="cards-played">
+                            <div class="card-slot player-slot" id="player-played-card">?</div>
+                            <div class="vs-badge">VS</div>
+                            <div class="card-slot computer-slot" id="computer-played-card">?</div>
+                        </div>
+                    </div>
+
+                    <div class="hand-container">
+                        <h3>Your Hand</h3>
+                        <div class="cards-grid" id="player-hand">
+                            <!-- Cards injected by JS -->
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Simulation Mode -->
+            <section id="simulation-mode" class="mode-section" style="display: none;">
+                <h2>Simulate Matchup</h2>
+                <div class="setup-container">
+                    <div class="input-row">
+                        <div class="input-group">
+                            <label for="sim-strat1">Player 1 Strategy:</label>
+                            <select id="sim-strat1"></select>
+                        </div>
+                        <div class="vs-text">VS</div>
+                        <div class="input-group">
+                            <label for="sim-strat2">Player 2 Strategy:</label>
+                            <select id="sim-strat2"></select>
+                        </div>
+                    </div>
+                    <div class="input-row">
+                        <div class="input-group">
+                            <label for="sim-games">Number of Games:</label>
+                            <input type="number" id="sim-games" value="1000" min="1" max="100000">
+                        </div>
+                        <div class="input-group">
+                            <label for="sim-cards">Number of Cards:</label>
+                            <input type="number" id="sim-cards" value="10" min="3" max="50">
+                        </div>
+                    </div>
+                    <button id="run-sim-btn" class="primary-btn">Run Simulation</button>
+                </div>
+
+                <div class="results-container" id="sim-results" style="display: none;">
+                    <h3>Simulation Results</h3>
+                    <div class="sim-stats">
+                        <div class="stat-box">
+                            <h4 id="res-p1-name">Player 1</h4>
+                            <div class="stat-value" id="res-p1-wins">0</div>
+                            <div class="stat-label">Wins</div>
+                        </div>
+                        <div class="stat-box neutral">
+                            <h4>Ties</h4>
+                            <div class="stat-value" id="res-ties">0</div>
+                            <div class="stat-label">Draws</div>
+                        </div>
+                        <div class="stat-box">
+                            <h4 id="res-p2-name">Player 2</h4>
+                            <div class="stat-value" id="res-p2-wins">0</div>
+                            <div class="stat-label">Wins</div>
+                        </div>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress p1" id="prog-p1"></div>
+                        <div class="progress tie" id="prog-tie"></div>
+                        <div class="progress p2" id="prog-p2"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tournament Mode -->
+            <section id="tournament-mode" class="mode-section" style="display: none;">
+                <h2>Tournament Evaluation</h2>
+                <p>Evaluates all strategies against Random Strategy.</p>
+                
+                <div class="setup-container">
+                    <div class="input-row">
+                        <div class="input-group">
+                            <label for="tourney-games">Games per Matchup:</label>
+                            <input type="number" id="tourney-games" value="10000" min="1" max="100000">
+                        </div>
+                        <div class="input-group">
+                            <label for="tourney-cards">Number of Cards:</label>
+                            <input type="number" id="tourney-cards" value="10" min="3" max="50">
+                        </div>
+                    </div>
+                    <button id="run-tourney-btn" class="primary-btn">Run Tournament</button>
+                </div>
+
+                <div class="table-container" id="tourney-results" style="display: none;">
+                    <table class="glass-table">
+                        <thead>
+                            <tr>
+                                <th>Rank</th>
+                                <th>Strategy</th>
+                                <th>Wins vs Random</th>
+                                <th>Losses</th>
+                                <th>Ties</th>
+                                <th>Win %</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tourney-body">
+                            <!-- Rows injected by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>

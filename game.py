@@ -1,21 +1,53 @@
-# A simple 2-player High Card game with an object-oriented structure
-# that separates strategies into their own classes.
+import sys
+import random
 
-from strategies.sample_strategies import (RandomStrategy, HighCardStrategy,
-                                          LowCardStrategy)
-from strategies.AIGeneratedStrategies import GeminiStrategy1, StrategicPlay
+from strategies.strategy import Strategy
+from strategies.sampleStrategies import (RandomStrategy, HighCardStrategy,
+                                          LowCardStrategy, TopTwoRandomStrategy, BottomTwoRandomStrategy)
+from strategies.aiGeneratedStrategies import GeminiStrategy1, StrategicPlay, RandomFirstStrategicPlay, HalfOneHalfTwoStrategicPlay
 
-NUM_CARDS = 13
+NUM_CARDS = 10
+
+def get_all_strategies():
+    """Registry of all available AI strategies."""
+    return {
+        "1": RandomStrategy(),
+        "2": HighCardStrategy(),
+        "3": LowCardStrategy(),
+        "4": StrategicPlay(),
+        "5": GeminiStrategy1(),
+        "6": RandomFirstStrategicPlay(),
+        "7": HalfOneHalfTwoStrategicPlay(),
+        "8": TopTwoRandomStrategy(),
+        "9": BottomTwoRandomStrategy()
+    }
+
+class HumanStrategy(Strategy):
+    """A strategy that prompts a human player for input."""
+    def __init__(self, player_obj):
+        super().__init__("Human")
+        self.player_obj = player_obj
+
+    def play(self, player_numbers, opponent_numbers):
+        while True:
+            try:
+                print(f"Your available numbers are: {sorted(self.player_obj.numbers)}")
+                choice = int(input("Choose a number to play: "))
+                if self.player_obj.remove_number(choice):
+                    return choice
+                else:
+                    print("Invalid number. Please choose a number from your list.")
+            except ValueError:
+                print("Invalid input. Please enter a valid number.")
 
 class Player:
     """
     Represents a player in the High Card game.
-    Each player has a name, a score, and a list of numbers.
     """
-    def __init__(self, name):
+    def __init__(self, name, num_cards=10):
         self.name = name
         self.score = 0
-        self.numbers = list(range(1, NUM_CARDS + 1))
+        self.numbers = list(range(1, num_cards + 1))
         self.played_numbers = []
 
     def remove_number(self, number):
@@ -26,247 +58,217 @@ class Player:
         return False
 
     def __str__(self):
-        """String representation of the player."""
         return self.name
 
-class Game:
+class Match:
     """
-    Orchestrates the High Card game.
-    Manages game state, players, and turn logic.
+    Orchestrates a single High Card game match between two players using provided strategies.
     """
-    def __init__(self):
-        self.player = Player("You")
-        self.computer = Player("Computer")
-        self.total_turns = NUM_CARDS
-        self.current_turn = 1
-        self.computer_strategy = None
-        self.verbose = True
-        
-        self.strategies = {
-            "1": RandomStrategy(),
-            "2": HighCardStrategy(),
-            "3": LowCardStrategy(),
-            "4": StrategicPlay(),
-            "5": GeminiStrategy1()
-        }
+    def __init__(self, player1, player2, strategy1, strategy2, verbose=False, num_cards=10):
+        self.player1 = player1
+        self.player2 = player2
+        self.strategy1 = strategy1
+        self.strategy2 = strategy2
+        self.verbose = verbose
+        self.total_turns = num_cards
 
-    # --- Game Logic Functions ---
-    def _select_strategy(self):
-        """Prompts the user to select a strategy for the computer."""
-        print("Choose a strategy for the computer opponent:")
-        for key, strategy_obj in self.strategies.items():
-            print(f"  ({key}) {strategy_obj.name}")
-
-        while True:
-            choice = input("Enter your choice (1, 2, 3, 4, or 5): ")
-            if choice in self.strategies:
-                self.computer_strategy = self.strategies[choice]
-                print(f"You have selected the {self.computer_strategy.name} strategy.")
-                break
-            else:
-                print("Invalid choice. Please enter a number from the list.")
-
-    def _select_simulation_strategies(self):
-        """Prompts the user to select two strategies for the simulation."""
-        print("Choose two strategies to face off:")
-        for key, strategy_obj in self.strategies.items():
-            print(f"  ({key}) {strategy_obj.name}")
-
-        while True:
-            choice1 = input("Enter choice for Player 1: ")
-            if choice1 in self.strategies:
-                break
-            print("Invalid choice. Please enter a valid number.")
-
-        while True:
-            choice2 = input("Enter choice for Player 2: ")
-            if choice2 in self.strategies:
-                break
-            print("Invalid choice. Please enter a valid number.")
-
-        strategy1 = self.strategies[choice1]
-        strategy2 = self.strategies[choice2]
-
-        print(f"\nSimulating a game between {strategy1.name} and {strategy2.name}...")
-        return strategy1, strategy2
-
-    def _display_status(self, current_turn, player1, player2):
-        """Displays the current scores and turn number for the simulation."""
+    def _display_status(self, current_turn):
         print(f"\n--- Turn {current_turn}/{self.total_turns} ---")
-        print(f"{player1.name}'s Score: {player1.score}")
-        print(f"{player2.name}'s Score: {player2.score}")
+        print(f"{self.player1.name}'s Score: {self.player1.score}")
+        print(f"{self.player2.name}'s Score: {self.player2.score}")
         print("-" * 25)
 
-    def _get_player_choice(self):
-        """Prompts the human player for a number and validates the input."""
-        while True:
-            try:
-                print(f"Your available numbers are: {sorted(self.player.numbers)}")
-                choice = int(input(f"Choose a number to play: "))
-                if self.player.remove_number(choice):
-                    return choice
-                else:
-                    print("Invalid number. Please choose a number from your list.")
-            except ValueError:
-                print("Invalid input. Please enter a valid number.")
-
-    def _update_game_state(self, player1_choice, player2_choice, player1, player2):
-        """Compares choices, updates scores, and removes the played numbers."""
+    def _update_game_state(self, p1_choice, p2_choice):
         if self.verbose:
-            print(f"{player1.name} played: {player1_choice}")
-            print(f"{player2.name} played: {player2_choice}")
+            print(f"{self.player1.name} played: {p1_choice}")
+            print(f"{self.player2.name} played: {p2_choice}")
 
-        if player1_choice == 1 and player2_choice == NUM_CARDS:
-            player1.score += 1
-            if self.verbose:
-                print(f"{player1.name} wins this turn! (1 beats {NUM_CARDS})")
-        elif player2_choice == 1 and player1_choice == NUM_CARDS:
-            player2.score += 1
-            if self.verbose:
-                print(f"{player2.name} wins this turn! (1 beats {NUM_CARDS})")
-        elif player1_choice > player2_choice:
-            player1.score += 1
-            if self.verbose:
-                print(f"{player1.name} wins this turn!")
-        elif player2_choice > player1_choice:
-            player2.score += 1
-            if self.verbose:
-                print(f"{player2.name} wins this turn!")
+        if p1_choice == 1 and p2_choice == self.total_turns:
+            self.player1.score += 1
+            if self.verbose: print(f"{self.player1.name} wins this turn! (1 beats {self.total_turns})")
+        elif p2_choice == 1 and p1_choice == self.total_turns:
+            self.player2.score += 1
+            if self.verbose: print(f"{self.player2.name} wins this turn! (1 beats {self.total_turns})")
+        elif p1_choice > p2_choice:
+            self.player1.score += 1
+            if self.verbose: print(f"{self.player1.name} wins this turn!")
+        elif p2_choice > p1_choice:
+            self.player2.score += 1
+            if self.verbose: print(f"{self.player2.name} wins this turn!")
         else:
-            player1.score += 0.5
-            player2.score += 0.5
-            if self.verbose:
-                print("It's a tie! Each player gets 0.5 points.")
-        
-        player1.played_numbers.append(player1_choice)
-        player2.played_numbers.append(player2_choice)
-        player1.remove_number(player1_choice)
-        player2.remove_number(player2_choice)
+            self.player1.score += 0.5
+            self.player2.score += 0.5
+            if self.verbose: print("It's a tie! Each player gets 0.5 points.")
 
-    def _end_game(self, player1, player2):
-        """Declares the final winner and ends the game."""
+        self.player1.played_numbers.append(p1_choice)
+        self.player2.played_numbers.append(p2_choice)
+        # Note: remove_number is handled here for AI, but HumanStrategy handles it early.
+        # We need to make sure HumanStrategy doesn't double-remove.
+        # So instead, let the Match handle all removals.
+        self.player1.remove_number(p1_choice)
+        self.player2.remove_number(p2_choice)
+
+    def play_match(self):
+        """Runs the match and returns the result (1 for P1 win, 2 for P2 win, 0 for tie)."""
+        for turn in range(1, self.total_turns + 1):
+            if self.verbose:
+                self._display_status(turn)
+            
+            p1_choice = self.strategy1.play(self.player1.numbers, self.player2.numbers)
+            p2_choice = self.strategy2.play(self.player2.numbers, self.player1.numbers)
+            
+            self._update_game_state(p1_choice, p2_choice)
+
+        return self._end_match()
+
+    def _end_match(self):
         if self.verbose:
             print("\n" + "=" * 25)
             print("           GAME OVER           ")
             print("=" * 25)
             print(f"\nFinal Scores:")
-            print(f"{player1.name} Score: {player1.score}")
-            print(f"{player2.name} Score: {player2.score}")
+            print(f"{self.player1.name} Score: {self.player1.score}")
+            print(f"{self.player2.name} Score: {self.player2.score}")
 
-        if player1.score > player2.score:
-            if self.verbose: print(f"\n{player1.name} wins the game!")
+        if self.player1.score > self.player2.score:
+            if self.verbose: print(f"\n{self.player1.name} wins the game!")
             return 1
-        elif player2.score > player1.score:
-            if self.verbose: print(f"\n{player2.name} wins the game!")
+        elif self.player2.score > self.player1.score:
+            if self.verbose: print(f"\n{self.player2.name} wins the game!")
             return 2
         else:
             if self.verbose: print("\nIt's a tie game!")
             return 0
 
-    def play(self):
-        """Main function to run the human vs. computer game."""
+
+class GameController:
+    """
+    Handles the Command Line Interface and Game Modes.
+    """
+    def __init__(self):
+        self.strategies = get_all_strategies()
+
+    def _select_strategy(self, prompt="Choose a strategy:"):
+        print(prompt)
+        for key, strategy_obj in self.strategies.items():
+            print(f"  ({key}) {strategy_obj.name}")
+
+        while True:
+            choice = input("Enter your choice: ")
+            if choice in self.strategies:
+                return self.strategies[choice]
+            print("Invalid choice. Please enter a number from the list.")
+
+    def run_interactive_mode(self):
         print("Welcome to High Card Game!")
         print(f"Play against the computer. The higher number wins the turn (but 1 beats {NUM_CARDS}). Most wins after {NUM_CARDS} turn(s) takes the game!")
         
-        self._select_strategy()
+        computer_strategy = self._select_strategy("Choose a strategy for the computer opponent:")
+        print(f"You have selected the {computer_strategy.name} strategy.")
 
-        for _ in range(self.total_turns):
-            self._display_status(self.current_turn, self.player, self.computer)
+        player1 = Player("You")
+        player2 = Player("Computer")
+        human_strategy = HumanStrategy(player1)
+
+        match = Match(player1, player2, human_strategy, computer_strategy, verbose=True)
+        match.play_match()
+
+    def run_simulation_mode(self):
+        try:
+            num_games = int(input("How many games would you like to simulate? "))
+        except ValueError:
+            print("Invalid number, defaulting to 100 games.")
+            num_games = 100
             
-            player_choice = self._get_player_choice()
-            computer_choice = self.computer_strategy.play(self.computer.numbers, self.player.numbers)
-            
-            self._update_game_state(player_choice, computer_choice, self.player, self.computer)
-            
-            self.current_turn += 1
+        verbose_input = input("Enable verbose output to see each turn? (y/n): ").strip().lower()
+        verbose = (verbose_input == 'y')
         
-        self._end_game(self.player, self.computer)
-
-    def simulate_game(self, strategy1=None, strategy2=None):
-        """Runs a simulation of two strategies playing against each other."""
-        if not strategy1 or not strategy2:
-            strategy1, strategy2 = self._select_simulation_strategies()
+        print("\nChoose two strategies to face off:")
+        strat1 = self._select_strategy("Select Player 1:")
+        strat2 = self._select_strategy("Select Player 2:")
         
-        player1 = Player(strategy1.name)
-        player2 = Player(strategy2.name)
-
-        for turn in range(1, self.total_turns + 1):
-            if self.verbose:
-                self._display_status(turn, player1, player2)
-                
-            player1_choice = strategy1.play(player1.numbers, player2.numbers)
-            player2_choice = strategy2.play(player2.numbers, player1.numbers)
-
-            self._update_game_state(player1_choice, player2_choice, player1, player2)
-
-        return self._end_game(player1, player2)
-
-# --- Run the game ---
-if __name__ == "__main__":
-    game = Game()
-    
-    while True:
-        print("\nWhat would you like to do?")
-        print("  (1) Play a game against a computer opponent")
-        print("  (2) Simulate a matchup between two strategies")
-        print("  (3) Run a tournament (every strategy against each other)")
-        choice = input("Enter your choice (1, 2, or 3): ")
-
-        if choice == "1":
-            game.play()
-            break
-        elif choice == "2":
-            try:
-                num_games = int(input("How many games would you like to simulate? "))
-            except ValueError:
-                print("Invalid number, defaulting to 100 games.")
-                num_games = 100
-                
-            verbose_input = input("Enable verbose output to see each turn? (y/n): ").strip().lower()
-            game.verbose = (verbose_input == 'y')
+        print(f"\nSimulating a game between {strat1.name} and {strat2.name}...")
+        
+        ties = 0
+        player1_wins = 0 
+        player2_wins = 0
+        
+        for _ in range(num_games):
+            p1 = Player(strat1.name)
+            p2 = Player(strat2.name)
+            match = Match(p1, p2, strat1, strat2, verbose=verbose)
+            result = match.play_match()
             
-            strat1, strat2 = game._select_simulation_strategies()
+            if result == 1:
+                player1_wins += 1
+            elif result == 2:
+                player2_wins += 1
+            else:
+                ties += 1
+                
+        print(f"\nResults after {num_games} games:")
+        print(f"{strat1.name} wins: {player1_wins}")
+        print(f"{strat2.name} wins: {player2_wins}")
+        print(f"Ties: {ties}")
+
+    def run_tournament_mode(self):
+        random_strategy = self.strategies["1"]
+        matchup_results = []
+        num_games = 100000
+        
+        print(f"\nRunning tournament against Random... ({num_games} games per matchup)")
+        
+        for s1 in self.strategies.values():
+            s1_wins = 0
+            s2_wins = 0
             ties = 0
-            player1_wins = 0 
-            player2_wins = 0
             
             for _ in range(num_games):
-                result = game.simulate_game(strat1, strat2)
-                if result == 1:
-                    player1_wins += 1
-                elif result == 2:
-                    player2_wins += 1
+                p1 = Player(s1.name)
+                p2 = Player(random_strategy.name)
+                match = Match(p1, p2, s1, random_strategy, verbose=False)
+                res = match.play_match()
+                
+                if res == 1:
+                    s1_wins += 1
+                elif res == 2:
+                    s2_wins += 1
                 else:
                     ties += 1
                     
-            print(f"\nResults after {num_games} games:")
-            print(f"{strat1.name} wins: {player1_wins}")
-            print(f"{strat2.name} wins: {player2_wins}")
-            print(f"Ties: {ties}")
-            break
-        elif choice == "3":
-            game.verbose = False
-            strategies = list(game.strategies.values())
-            tournament_scores = {s.name: 0 for s in strategies}
+            # For Random vs Random, make sure the higher win rate is displayed as s1_wins
+            if s1.name == random_strategy.name and s2_wins > s1_wins:
+                s1_wins, s2_wins = s2_wins, s1_wins
+                    
+            matchup_results.append((s1.name, random_strategy.name, s1_wins, s2_wins, ties))
             
-            print("\nRunning tournament... (100 games per matchup)")
-            for i in range(len(strategies)):
-                for j in range(i + 1, len(strategies)):
-                    s1, s2 = strategies[i], strategies[j]
-                    for _ in range(100):
-                        res = game.simulate_game(s1, s2)
-                        if res == 1:
-                            tournament_scores[s1.name] += 1
-                        elif res == 2:
-                            tournament_scores[s2.name] += 1
-                        else:
-                            tournament_scores[s1.name] += 0.5
-                            tournament_scores[s2.name] += 0.5
-            
-            print("\nTournament Results:")
-            sorted_scores = sorted(tournament_scores.items(), key=lambda x: x[1], reverse=True)
-            for rank, (name, score) in enumerate(sorted_scores, 1):
-                print(f"{rank}. {name}: {score} points")
-            break
-        else:
-            print("Invalid choice. Please enter 1, 2, or 3.")
+        print("\nTournament Against Random Results:")
+        print(f"{'Strategy':<25} | {'Wins vs Random':<15} | {'Losses':<8} | {'Ties':<6}")
+        print("-" * 62)
+        matchup_results.sort(key=lambda x: x[2], reverse=True)
+        for p1, p2, w1, w2, t in matchup_results:
+            print(f"{p1:<25} | {w1:<15} | {w2:<8} | {t:<6}")
+
+    def run(self):
+        while True:
+            print("\nWhat would you like to do?")
+            print("  (1) Play a game against a computer opponent")
+            print("  (2) Simulate a matchup between two strategies")
+            print("  (3) Evaluate all strategies against Random")
+            choice = input("Enter your choice (1, 2, or 3): ")
+
+            if choice == "1":
+                self.run_interactive_mode()
+                break
+            elif choice == "2":
+                self.run_simulation_mode()
+                break
+            elif choice == "3":
+                self.run_tournament_mode()
+                break
+            else:
+                print("Invalid choice. Please enter 1, 2, or 3.")
+
+if __name__ == "__main__":
+    controller = GameController()
+    controller.run()
